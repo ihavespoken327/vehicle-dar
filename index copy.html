@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFD Focused DAR Console</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-neutral-950 text-neutral-100 font-sans antialiased p-3 md:p-8 min-h-screen selection:bg-red-500 selection:text-white">
+
+  <div class="max-w-5xl mx-auto bg-neutral-900 border border-neutral-800 rounded-xl shadow-2xl overflow-hidden">
+    
+    <div class="bg-gradient-to-r from-neutral-900 to-red-950 border-b border-neutral-800 p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="flex items-center gap-4">
+        <img src="EmbeddedImagemfd.png" alt="MFD Badge" class="h-12 w-auto object-contain" onerror="this.src='https://www.cityofmadison.com/sites/default/files/city-of-madison/fire/images/mfd-badge-small.png'">
+        <div>
+          <h1 class="text-lg font-black uppercase tracking-wider text-neutral-100">MFD Daily Apparatus Report</h1>
+          <p class="text-[10px] text-neutral-400 font-medium tracking-wide">Command & Fleet Logistics Interface</p>
+        </div>
+      </div>
+      <button onclick="resetToFactoryDefaults()" class="self-start sm:self-center bg-neutral-950 hover:bg-neutral-800 text-[11px] text-neutral-400 hover:text-red-400 font-bold uppercase tracking-wider px-3 py-2 rounded border border-neutral-800 transition cursor-pointer">
+        🔄 Reset Fleet Defaults
+      </button>
+    </div>
+
+    <div class="p-5 border-b border-neutral-800 bg-neutral-950/40 grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">1. Select Location / Yard *</label>
+        <select id="locationSelect" onchange="handleLocationChange()" class="w-full h-10 bg-neutral-950 border border-neutral-800 text-xs rounded-lg p-2 focus:outline-none focus:border-red-500 text-neutral-200 font-semibold cursor-pointer">
+          <option value="">Select Location...</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">2. Select Shift Sector *</label>
+        <div class="grid grid-cols-3 gap-1 bg-neutral-950 p-1 border border-neutral-800 rounded-lg h-10">
+          <button onclick="selectShift('A')" id="btnShiftA" class="text-xs font-bold rounded transition cursor-pointer text-neutral-400 hover:text-white">A-Shift</button>
+          <button onclick="selectShift('B')" id="btnShiftB" class="text-xs font-bold rounded transition cursor-pointer text-neutral-400 hover:text-white">B-Shift</button>
+          <button onclick="selectShift('C')" id="btnShiftC" class="text-xs font-bold rounded transition cursor-pointer text-neutral-400 hover:text-white">C-Shift</button>
+        </div>
+        <input type="hidden" id="shiftSelect" value="">
+      </div>
+      <div>
+        <label class="block text-[10px] font-black uppercase tracking-widest text-neutral-400 mb-2">3. Log Submitted By *</label>
+        <input type="text" id="reporterInput" placeholder="Rank / Name (e.g. Capt. J. Smith)" class="w-full h-10 bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 focus:outline-none focus:border-red-500 text-neutral-200 placeholder-neutral-600 font-medium">
+      </div>
+    </div>
+
+    <div class="p-5 grid grid-cols-1 md:grid-cols-5 gap-6">
+      
+      <div class="md:col-span-2 md:border-r md:border-neutral-800 md:pr-4 flex flex-col gap-5">
+        <div>
+          <div class="flex justify-between items-end mb-2">
+            <h3 class="text-xs font-black uppercase tracking-widest text-neutral-400">Assigned Rigs</h3>
+            <div id="bulkToggleContainer" class="hidden text-[10px] text-red-400 font-black uppercase tracking-wider select-none">
+              <span onclick="bulkToggleVehicles(true)" class="hover:text-red-300 cursor-pointer p-1">Select All</span>
+              <span class="text-neutral-700 mx-0.5">|</span>
+              <span onclick="bulkToggleVehicles(false)" class="hover:text-red-300 cursor-pointer p-1">Clear All</span>
+            </div>
+          </div>
+          <p class="text-[11px] text-neutral-500 mb-3">Tap units to bring them into your active audit checklist.</p>
+          
+          <div id="vehiclePickerContainer" class="flex flex-col gap-2 max-h-none md:max-h-[260px] overflow-y-auto pr-1">
+            <div class="text-xs text-neutral-600 italic border border-neutral-800/60 rounded-lg p-4 bg-neutral-950/20">Select a location above to view roster assignments.</div>
+          </div>
+        </div>
+
+        <div class="border-t border-neutral-800 pt-4 mt-2 bg-neutral-950/40 border rounded-xl p-3 border-neutral-800/80">
+          <h4 class="text-[11px] font-black uppercase tracking-widest text-neutral-300 mb-1">Global Database Tools</h4>
+          <p class="text-[10px] text-neutral-500 mb-3">Create permanent new assets or delete units entirely from system.</p>
+          
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-2">
+              <input type="text" id="inlineSearchInput" oninput="renderInlineSearchResults()" placeholder="🔍 Search or type new rig name..." class="w-full bg-neutral-950 border border-neutral-800 text-xs rounded-lg p-2.5 focus:outline-none focus:border-red-500 text-neutral-200 placeholder-neutral-600">
+              <button onclick="createNewGlobalVehicle()" title="Register asset globally inside layout defaults" class="bg-neutral-800 hover:bg-neutral-700 text-neutral-200 text-xs px-4 rounded-lg border border-neutral-700 font-black uppercase tracking-wider transition cursor-pointer shrink-0">
+                + Create
+              </button>
+            </div>
+            <div id="inlineSearchResults" class="bg-neutral-950 border border-neutral-800/60 rounded-lg max-h-40 overflow-y-auto flex flex-col divide-y divide-neutral-900"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="md:col-span-3">
+        <h3 class="text-xs font-black uppercase tracking-widest text-neutral-400 mb-3">Active Apparatus Audit Matrix</h3>
+        <div id="auditGridContainer" class="flex flex-col gap-3 max-h-none md:max-h-[520px] overflow-y-auto pr-1">
+          <div class="text-xs text-neutral-600 italic border border-dashed border-neutral-800 rounded-xl p-8 text-center bg-neutral-950/10">No apparatus selected. Use the checklist panel to review active targets.</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="bg-neutral-950/60 border-t border-neutral-800 px-5 py-4 flex justify-end">
+      <button onclick="triggerSubmitRouting()" class="w-full sm:w-auto bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-wider text-xs px-8 py-3 rounded-xl shadow-lg shadow-red-950/20 cursor-pointer transition transform active:scale-[0.99]">
+        Submit Checklist
+      </button>
+    </div>
+  </div>
+
+  <div id="transferModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div class="bg-neutral-950 border-b border-neutral-800 p-4">
+        <h3 class="text-xs font-bold uppercase tracking-widest text-neutral-200">Reassign Apparatus Location</h3>
+      </div>
+      <div class="p-5 flex flex-col gap-4">
+        <p class="text-xs text-neutral-400">Moving asset: <span id="transferTargetLabel" class="font-bold text-red-400"></span></p>
+        <div>
+          <label class="block text-[10px] font-bold uppercase tracking-wider text-neutral-400 mb-1">Select Target Destination Yard / Station</label>
+          <select id="transferDestinationSelect" class="w-full h-10 bg-neutral-950 border border-neutral-800 rounded-lg p-2 text-xs text-neutral-200 focus:outline-none focus:border-red-500"></select>
+        </div>
+      </div>
+      <div class="bg-neutral-950 px-5 py-3 border-t border-neutral-800 flex justify-end gap-2">
+        <button onclick="closeTransferModal()" class="bg-neutral-900 text-neutral-400 border border-neutral-800 text-xs px-4 py-2 rounded-lg font-semibold cursor-pointer">Cancel</button>
+        <button onclick="executeVehicleTransfer()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider px-5 py-2 rounded-lg shadow cursor-pointer">Confirm & Save Move</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="routingModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-neutral-900 border border-neutral-800 w-full max-w-3xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <div class="bg-neutral-950 border-b border-neutral-800 p-4 flex justify-between items-center shrink-0">
+        <h3 class="text-xs font-bold uppercase tracking-widest text-neutral-200">Polished Email Report Preview</h3>
+        <button onclick="closeRoutingModal()" class="text-neutral-500 hover:text-neutral-300 font-bold text-sm cursor-pointer">✕</button>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex flex-col gap-4 bg-neutral-950">
+        <label class="block text-[10px] font-bold uppercase tracking-wider text-neutral-400">Review Formatted Email Body</label>
+        <div id="richEmailPreviewWindow" class="bg-white text-neutral-900 rounded-lg p-1 max-h-[380px] overflow-y-auto shadow-inner border border-neutral-200">
+          </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-neutral-800 pt-4">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-wider text-neutral-400 mb-1">Today's Chiefs' Aide Email</label>
+            <input type="email" id="aideEmail" value="chiefsaide@madisonfire.gov" class="w-full bg-neutral-900 border border-neutral-800 rounded p-2 text-xs text-neutral-200 focus:outline-none focus:border-red-500">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-wider text-neutral-400 mb-1">Today's OIC Email</label>
+            <input type="email" id="oicEmail" value="oic@madisonfire.gov" class="w-full bg-neutral-900 border border-neutral-800 rounded p-2 text-xs text-neutral-200 focus:outline-none focus:border-red-500">
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-neutral-950 px-5 py-3 border-t border-neutral-800 flex justify-end gap-2 shrink-0">
+        <button onclick="closeRoutingModal()" class="bg-neutral-900 text-neutral-400 border border-neutral-800 text-xs px-4 py-2 rounded font-semibold cursor-pointer">Back</button>
+        <button onclick="executeReportPipeline()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider px-5 py-2 rounded shadow cursor-pointer">Confirm & Send Report</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const FACTORY_BLUEPRINT = {
+      "Station 1": ["L1/901", "E41/824", "C31/2744", "C42P/2852", "LR1/8776", "LR2/8780", "LR3/8779", "C43/2853", "Training Ladder/943"],
+      "Station 2": ["L2/905", "M2/966", "L52/942"],
+      "Station 3": ["E3/828", "M3/968", "E43/826", "SQ8/902"],
+      "Station 4": ["E4/836", "M4/967", "M67/950"],
+      "Station 5": ["E5/831", "M5/962"],
+      "Station 6": ["E6/832", "M6/957"],
+      "Station 7": ["L7/900", "E7/834", "M7/963", "HIT7/960", "C56/1802"],
+      "Station 8": ["L8/945", "E42/822", "M66/970", "TR4/7652", "TR3/803", "C55P/2875"],
+      "Station 9": ["E9/837", "SQ9/948"],
+      "Station 10": ["E10/833", "M10/969", "C48/2636", "TR6/7504", "FireMarshal/1709", "C46/2691", "EMS Coord/1735", "C32/2856"],
+      "Station 11": ["E11/829", "M11/959", "C80/2826", "C41P/838", "C44/2616", "EMS Tr SUV/1895", "TR1/801"],
+      "Station 12": ["E12/830", "C49P/2885", "TR17/7654"],
+      "Station 13": ["E13/840", "M63/953", "M64/952"],
+      "Station 14": ["L14/904", "L50/903", "E40/825", "ATV1/956", "Training Engine/821", "TR9/7673", "TR11/7676", "TR14/7690"],
+      "Nakoosa": ["M62/958", "E1/827", "M8/964", "L51/944", "M61/955", "E8/839", "ATV2-8066", "TR2/7521", "TR16/7697", "UTV1-961", "M65/949", "C52/1710", "TR15/7681", "UTV2-965"],
+      "Radio Shop": ["005/924", "005/926", "005/916"],
+      "E. Wash.": ["042", "043", "044", "C45", "C46", "C47", "C48"],
+      "Staff Vehicles": ["Explorer TRN", "F250 TRN", "F250 LR3", "F250 LR1", "TRN - Van", "EMS TRN", "Comm Ed Van", "PIO"],
+      "Available / Emergency Use / OOS": ["C40", "C50", "C51", "C56", "C53", "C54", "C55", "C57", "C80", "CARES 4/975", "CARES 3/974", "CARES 1/972", "CARES 2/973", "C40/1852", "C50/1896", "C531613/", "CARES", "F450 LR", "Comm Med", "EMS TRN", "F350 HURT", "F250 Arson"],
+      "ATVs / UTVs / Trailers": ["ATV 1 / 955 / GEM", "ATV 2 / 8066 / Mini-Med", "UTV 1 / 961 / Polaris Ranger", "UTV 2 / 965 / Polaris Ranger", "TR-1 (36' Enclosed)", "TR-2 (Polaris UTV)", "TR-3 (Lumber)", "TR-4 (HURT Trailer)", "TR-6 (Comm Ed)", "TR-7", "TR-8", "TR-11 (Training)", "TR-14 (Roof Vent)", "TR-15 (Mini Med)", "TR-16", "TR-17", "TR-18", "LR 1 (Humbler/Utility)", "LR1 (L-Assault)", "LR 2 (MCI)", "LR2 (Jon Boat)", "LR 3", "LR3 (Air Boat)", "C54/2831", "Hose Tester", "Brush 12"]
+    };
+
+    let BLUEPRINT_MODS = JSON.parse(localStorage.getItem('mfd_blueprint_customizations')) || { added: {}, removed: [] };
+
+    function generateModifiedManifest() {
+      let base = JSON.parse(JSON.stringify(FACTORY_BLUEPRINT));
+      Object.keys(base).forEach(loc => {
+        base[loc] = base[loc].filter(unit => !BLUEPRINT_MODS.removed.includes(unit));
+      });
+      Object.keys(BLUEPRINT_MODS.added).forEach(unit => {
+        const homeLoc = BLUEPRINT_MODS.added[unit];
+        if (homeLoc && base[homeLoc] && !base[homeLoc].includes(unit) && !BLUEPRINT_MODS.removed.includes(unit)) {
+          base[homeLoc].push(unit);
+        }
+      });
+      return base;
+    }
+
+    let CURRENT_MANIFEST = JSON.parse(localStorage.getItem('mfd_manifest')) || generateModifiedManifest();
+    let GLOBAL_MASTER_INVENTORY = JSON.parse(localStorage.getItem('mfd_global_inv')) || Array.from(new Set(Object.values(CURRENT_MANIFEST).flat())).sort();
+
+    let selectedVehicles = [];
+    let auditStates = {};
+    let vehicleBeingTransferred = null;
+
+    function saveStateToLocalStorage() {
+      localStorage.setItem('mfd_manifest', JSON.stringify(CURRENT_MANIFEST));
+      localStorage.setItem('mfd_global_inv', JSON.stringify(GLOBAL_MASTER_INVENTORY));
+      localStorage.setItem('mfd_blueprint_customizations', JSON.stringify(BLUEPRINT_MODS));
+    }
+
+    function resetToFactoryDefaults() {
+      if (!confirm("Reset layout? This clears temporary session shifts, but will carefully preserve your created assets and hide your deleted fleet changes as requested.")) return;
+      CURRENT_MANIFEST = generateModifiedManifest();
+      GLOBAL_MASTER_INVENTORY = Array.from(new Set(Object.values(generateModifiedManifest()).flat())).sort();
+      selectedVehicles = [];
+      auditStates = {};
+      document.getElementById('locationSelect').value = "";
+      document.getElementById('shiftSelect').value = "";
+      resetShiftPillStyles();
+      handleLocationChange();
+      renderInlineSearchResults();
+    }
+
+    function initLayout() {
+      const selectLoc = document.getElementById('locationSelect');
+      const destSelect = document.getElementById('transferDestinationSelect');
+      selectLoc.innerHTML = '<option value="">Select Location...</option>';
+      destSelect.innerHTML = '';
+      
+      Object.keys(CURRENT_MANIFEST).forEach(loc => {
+        const op = document.createElement('option'); op.value = loc; op.innerText = loc; selectLoc.appendChild(op);
+        const opDest = document.createElement('option'); opDest.value = loc; opDest.innerText = loc; destSelect.appendChild(opDest);
+      });
+      renderInlineSearchResults();
+    }
+
+    function selectShift(shiftLetter) {
+      document.getElementById('shiftSelect').value = shiftLetter;
+      resetShiftPillStyles();
+      const activeBtn = document.getElementById(`btnShift${shiftLetter}`);
+      activeBtn.className = "text-xs font-black rounded transition cursor-pointer bg-red-600 text-white shadow-sm";
+    }
+
+    function resetShiftPillStyles() {
+      ['A', 'B', 'C'].forEach(l => {
+        document.getElementById(`btnShift${l}`).className = "text-xs font-bold rounded transition cursor-pointer text-neutral-400 hover:text-white hover:bg-neutral-800/40";
+      });
+    }
+
+    function renderInlineSearchResults() {
+      const query = document.getElementById('inlineSearchInput').value.toLowerCase().trim();
+      const container = document.getElementById('inlineSearchResults'); container.innerHTML = '';
+      const filtered = GLOBAL_MASTER_INVENTORY.filter(unit => unit.toLowerCase().includes(query));
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="p-2 text-center text-neutral-600 text-xs italic">No matching assets found.</div>'; return;
+      }
+      filtered.forEach(unit => {
+        const row = document.createElement('div'); row.className = "w-full flex justify-between items-center p-2 text-xs hover:bg-neutral-800/60 group text-neutral-300 select-none";
+        row.innerHTML = `
+          <span onclick="injectSelectedGlobalVehicle('${unit}')" class="grow font-medium cursor-pointer hover:text-white py-1">${unit}</span>
+          <div class="flex items-center gap-3">
+            <span onclick="injectSelectedGlobalVehicle('${unit}')" class="text-[10px] text-red-500 font-bold opacity-0 group-hover:opacity-100 cursor-pointer">+ Deploy</span>
+            <button onclick="purgeVehicleFromGlobalInventory('${unit}')" class="text-neutral-700 hover:text-red-500 font-semibold text-xs cursor-pointer opacity-40 group-hover:opacity-100 p-1">🗑️</button>
+          </div>`;
+        container.appendChild(row);
+      });
+    }
+
+    function createNewGlobalVehicle() {
+      const nameInput = document.getElementById('inlineSearchInput'); 
+      const val = nameInput.value.trim();
+      const loc = document.getElementById('locationSelect').value;
+
+      if (!val) { alert("Type the new vehicle name inside the filter field first."); return; }
+      if (GLOBAL_MASTER_INVENTORY.some(u => u.toLowerCase() === val.toLowerCase())) { alert("This asset name already exists in inventory."); return; }
+      if (!loc) { alert("Please select a Location/Yard in Step 1 first, so the new asset can be assigned."); return; }
+
+      BLUEPRINT_MODS.removed = BLUEPRINT_MODS.removed.filter(v => v !== val);
+      BLUEPRINT_MODS.added[val] = loc;
+
+      GLOBAL_MASTER_INVENTORY.push(val); 
+      GLOBAL_MASTER_INVENTORY.sort();
+      CURRENT_MANIFEST[loc].push(val);
+
+      if (!selectedVehicles.includes(val)) { 
+        selectedVehicles.push(val); 
+        auditStates[val] = { status: 'In-Service', reason: '' }; 
+      }
+
+      saveStateToLocalStorage();
+      nameInput.value = ''; 
+      renderInlineSearchResults(); 
+      renderVehiclePickerList(); 
+      renderAuditGrid();
+    }
+
+    function purgeVehicleFromGlobalInventory(unit) {
+      if (!confirm(`Completely delete asset "${unit}"? It will be removed permanently from database defaults.`)) return;
+      if (BLUEPRINT_MODS.added[unit]) delete BLUEPRINT_MODS.added[unit];
+      if (!BLUEPRINT_MODS.removed.includes(unit)) BLUEPRINT_MODS.removed.push(unit);
+
+      GLOBAL_MASTER_INVENTORY = GLOBAL_MASTER_INVENTORY.filter(v => v !== unit);
+      Object.keys(CURRENT_MANIFEST).forEach(loc => { CURRENT_MANIFEST[loc] = CURRENT_MANIFEST[loc].filter(v => v !== unit); });
+      selectedVehicles = selectedVehicles.filter(v => v !== unit); 
+      delete auditStates[unit];
+      
+      saveStateToLocalStorage();
+      renderInlineSearchResults(); 
+      renderVehiclePickerList(); 
+      renderAuditGrid();
+    }
+
+    function injectSelectedGlobalVehicle(targetUnit) {
+      const loc = document.getElementById('locationSelect').value;
+      if (!loc) { alert("Please select a Location first."); return; }
+      if (CURRENT_MANIFEST[loc].includes(targetUnit)) {
+        alert(`Apparatus "${targetUnit}" is already deployed to ${loc}.`);
+        document.getElementById('inlineSearchInput').value = '';
+        renderInlineSearchResults();
+        return;
+      }
+      CURRENT_MANIFEST[loc].push(targetUnit);
+      if (!selectedVehicles.includes(targetUnit)) { selectedVehicles.push(targetUnit); auditStates[targetUnit] = { status: 'In-Service', reason: '' }; }
+      saveStateToLocalStorage();
+      document.getElementById('inlineSearchInput').value = ''; renderInlineSearchResults(); renderVehiclePickerList(); renderAuditGrid();
+    }
+
+    function handleLocationChange() {
+      const loc = document.getElementById('locationSelect').value;
+      selectedVehicles = []; auditStates = {}; renderAuditGrid();
+      if (!loc) { document.getElementById('vehiclePickerContainer').innerHTML = '<div class="text-xs text-neutral-600 italic border border-neutral-800/60 rounded-lg p-4 bg-neutral-950/20">Select a location above to view roster assignments.</div>'; document.getElementById('bulkToggleContainer').classList.add('hidden'); return; }
+      document.getElementById('bulkToggleContainer').classList.remove('hidden'); renderVehiclePickerList();
+    }
+
+    function renderVehiclePickerList() {
+      const loc = document.getElementById('locationSelect').value; const picker = document.getElementById('vehiclePickerContainer');
+      if (!loc) return; picker.innerHTML = '';
+      CURRENT_MANIFEST[loc].forEach(unit => {
+        const isChecked = selectedVehicles.includes(unit);
+        
+        // Upgraded item rows to touch-friendly card blocks without clumsy native checkbox targets
+        const wrapper = document.createElement('div');
+        wrapper.className = `flex items-center justify-between border rounded-lg p-3 text-xs font-bold transition select-none cursor-pointer ${isChecked ? 'bg-red-950/40 border-red-800/80 text-red-200' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700 hover:text-neutral-200'}`;
+        
+        wrapper.innerHTML = `
+          <div onclick="clickVehiclePill('${unit}')" class="grow flex items-center gap-3 py-0.5">
+            <span class="w-2.5 h-2.5 rounded-full border ${isChecked ? 'bg-red-500 border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'border-neutral-700 bg-neutral-900'}"></span>
+            <span class="tracking-wide text-xs">${unit}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openTransferModal('${unit}')" title="Transfer station deployment" class="text-neutral-500 hover:text-amber-400 font-bold p-1.5 text-xs rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition cursor-pointer">🔄</button>
+            <button onclick="removeVehicleFromLocation('${unit}')" title="Remove from station view" class="text-neutral-500 hover:text-red-400 font-bold p-1.5 text-xs rounded-md bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition cursor-pointer">✕</button>
+          </div>`;
+        picker.appendChild(wrapper);
+      });
+    }
+
+    function clickVehiclePill(unit) {
+      if (selectedVehicles.includes(unit)) {
+        selectedVehicles = selectedVehicles.filter(v => v !== unit);
+        delete auditStates[unit];
+      } else {
+        selectedVehicles.push(unit);
+        auditStates[unit] = { status: 'In-Service', reason: '' };
+      }
+      renderVehiclePickerList();
+      renderAuditGrid();
+    }
+
+    function openTransferModal(unit) {
+      vehicleBeingTransferred = unit; document.getElementById('transferTargetLabel').innerText = unit;
+      document.getElementById('transferDestinationSelect').value = document.getElementById('locationSelect').value;
+      document.getElementById('transferModal').classList.remove('hidden');
+    }
+
+    function closeTransferModal() { document.getElementById('transferModal').classList.add('hidden'); vehicleBeingTransferred = null; }
+
+    function executeVehicleTransfer() {
+      const targetDestination = document.getElementById('transferDestinationSelect').value;
+      const currentLoc = document.getElementById('locationSelect').value;
+      if (!vehicleBeingTransferred || !currentLoc || !targetDestination) return;
+      if (currentLoc === targetDestination) { alert("Target is already assigned here."); return; }
+
+      CURRENT_MANIFEST[currentLoc] = CURRENT_MANIFEST[currentLoc].filter(v => v !== vehicleBeingTransferred);
+      if (!selectedVehicles.includes(vehicleBeingTransferred)) selectedVehicles.push(vehicleBeingTransferred);
+      auditStates[vehicleBeingTransferred] = { status: 'Transferred Out', reason: `Reassigned directly to ${targetDestination}` };
+
+      if (BLUEPRINT_MODS.added[vehicleBeingTransferred]) {
+        BLUEPRINT_MODS.added[vehicleBeingTransferred] = targetDestination;
+      }
+
+      saveStateToLocalStorage();
+      closeTransferModal(); renderVehiclePickerList(); renderAuditGrid();
+    }
+
+    function removeVehicleFromLocation(unitToRemove) {
+      const loc = document.getElementById('locationSelect').value; if (!loc) return;
+      CURRENT_MANIFEST[loc] = CURRENT_MANIFEST[loc].filter(v => v !== unitToRemove);
+      selectedVehicles = selectedVehicles.filter(v => v !== unitToRemove); delete auditStates[unitToRemove];
+      saveStateToLocalStorage();
+      renderVehiclePickerList(); renderAuditGrid();
+    }
+
+    function bulkToggleVehicles(shouldSelectAll) {
+      const loc = document.getElementById('locationSelect').value; if (!loc) return;
+      if (shouldSelectAll) {
+        selectedVehicles = [...CURRENT_MANIFEST[loc]];
+        selectedVehicles.forEach(unit => { if (!auditStates[unit]) auditStates[unit] = { status: 'In-Service', reason: '' }; });
+      } else { selectedVehicles = []; auditStates = {}; }
+      renderVehiclePickerList(); renderAuditGrid();
+    }
+
+    function renderAuditGrid() {
+      const container = document.getElementById('auditGridContainer'); container.innerHTML = '';
+      if (selectedVehicles.length === 0) {
+        container.innerHTML = '<div class="text-xs text-neutral-600 italic border border-dashed border-neutral-800 rounded-xl p-8 text-center bg-neutral-950/10">No apparatus selected. Use the checklist panel to review active targets.</div>'; return;
+      }
+      selectedVehicles.forEach(unit => {
+        const state = auditStates[unit]; const row = document.createElement('div');
+        row.className = "bg-neutral-950 border border-neutral-800 p-4 rounded-xl flex flex-col gap-3 relative group shadow-sm";
+        const isTransfer = state.status === 'Transferred Out';
+        
+        row.innerHTML = `
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pr-12">
+            <span class="text-xs font-black tracking-wider text-neutral-200">${unit} ${isTransfer ? '🚩' : ''}</span>
+            <div class="flex flex-wrap gap-1 bg-neutral-900 p-1 border border-neutral-800 rounded-lg">
+              <button onclick="setUnitStatus('${unit}', 'In-Service')" class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md cursor-pointer transition ${state.status === 'In-Service' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60' : 'text-neutral-500 hover:text-neutral-300'}" style="outline:none;">In-Service</button>
+              <button onclick="setUnitStatus('${unit}', 'OOS - Emergency Use Only')" class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md cursor-pointer transition ${state.status === 'OOS - Emergency Use Only' ? 'bg-amber-950 text-amber-400 border border-amber-800/60' : 'text-neutral-500 hover:text-neutral-300'}" style="outline:none;">OOS-Emergency</button>
+              <button onclick="setUnitStatus('${unit}', 'OOS')" class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md cursor-pointer transition ${state.status === 'OOS' ? 'bg-red-950 text-red-400 border border-red-800/60' : 'text-neutral-500 hover:text-neutral-300'}" style="outline:none;">OOS</button>
+              <button onclick="openTransferModal('${unit}')" class="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider rounded-md cursor-pointer transition ${isTransfer ? 'bg-amber-950 text-amber-400 border border-amber-800/60' : 'text-neutral-500 hover:text-neutral-300'}" style="outline:none;">Transferred</button>
+            </div>
+          </div>
+          <input type="text" value="${state.reason}" oninput="setUnitReason('${unit}', this.value)" placeholder="Enter status discrepancies, equipment faults, or routing notes..." class="bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:border-red-500 placeholder-neutral-600">
+          <div class="absolute top-4 right-4 flex items-center gap-2">
+            <button onclick="deselectVehicleFromMatrix('${unit}')" class="text-neutral-600 hover:text-red-400 font-black text-sm opacity-50 group-hover:opacity-100 cursor-pointer p-1 transition">✕</button>
+          </div>`;
+        container.appendChild(row);
+      });
+    }
+
+    function deselectVehicleFromMatrix(unit) { selectedVehicles = selectedVehicles.filter(v => v !== unit); delete auditStates[unit]; renderVehiclePickerList(); renderAuditGrid(); }
+    function setUnitStatus(unit, stat) { auditStates[unit].status = stat; renderAuditGrid(); }
+    function setUnitReason(unit, val) { auditStates[unit].reason = val; }
+
+    function buildRichReportHtml(loc, shift, user) {
+      let rowsHtml = '';
+      selectedVehicles.forEach((unit, idx) => {
+        const data = auditStates[unit];
+        let statusBadge = `<span style="padding:4px 8px; font-size:11px; font-weight:bold; border-radius:4px; background:#e2f8f0; color:#117454;">In-Service</span>`;
+        if (data.status === 'OOS') statusBadge = `<span style="padding:4px 8px; font-size:11px; font-weight:bold; border-radius:4px; background:#fee2e2; color:#991b1b;">OUT OF SERVICE</span>`;
+        if (data.status === 'OOS - Emergency Use Only') statusBadge = `<span style="padding:4px 8px; font-size:11px; font-weight:bold; border-radius:4px; background:#fef3c7; color:#92400e;">OOS - Emergency Only</span>`;
+        if (data.status === 'Transferred Out') statusBadge = `<span style="padding:4px 8px; font-size:11px; font-weight:bold; border-radius:4px; background:#eff6ff; color:#1e40af;">TRANSFERRED</span>`;
+
+        rowsHtml += `
+          <tr style="border-bottom: 1px solid #e5e7eb;">
+            <td style="padding: 10px; font-weight: bold; color: #1f2937;">${unit}</td>
+            <td style="padding: 10px;">${statusBadge}</td>
+            <td style="padding: 10px; color: #4b5563; font-style: italic;">${data.reason && data.reason.trim() ? data.reason.trim() : 'None'}</td>
+          </tr>`;
+      });
+
+      return `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+          <div style="background: linear-gradient(135deg, #7f1d1d 0%, #111827 100%); padding: 20px; text-align: center; color: white;">
+            <img src="EmbeddedImagemfd.png" alt="MFD Logo" style="height: 60px; margin-bottom: 8px;" onerror="this.src='https://www.cityofmadison.com/sites/default/files/city-of-madison/fire/images/mfd-badge-small.png'">
+            <h2 style="margin: 0; font-size: 18px; text-transform: uppercase; letter-spacing: 1px; font-weight: 900;">Madison Fire Department</h2>
+            <p style="margin: 4px 0 0 0; font-size: 13px; opacity: 0.9; font-weight: bold; letter-spacing: 0.5px;">Daily Apparatus Report</p>
+          </div>
+          <div style="padding: 15px 20px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div style="font-size: 12px; color: #4b5563;"><strong>Station:</strong> ${loc}</div>
+            <div style="font-size: 12px; color: #4b5563;"><strong>Shift:</strong> ${shift}-Shift</div>
+            <div style="font-size: 12px; color: #4b5563;"><strong>Submitted By:</strong> ${user}</div>
+            <div style="font-size: 12px; color: #4b5563;"><strong>Date:</strong> 19JUNE2026</div>
+          </div>
+          <div style="padding: 20px;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;">
+              <thead>
+                <tr style="border-bottom: 2px solid #d1d5db; background-color: #f3f4f6; color: #374151; font-weight: bold;">
+                  <th style="padding: 10px;">Apparatus</th>
+                  <th style="padding: 10px;">Status</th>
+                  <th style="padding: 10px;">Discrepancy / Transfer Routing</th>
+                </tr>
+              </thead>
+              <tbody>${rowsHtml}</tbody>
+            </table>
+          </div>
+          <div style="background-color: #f3f4f6; padding: 12px; text-align: center; font-size: 11px; color: #4b5563; font-weight: bold; border-top: 1px solid #e5e7eb; letter-spacing: 0.5px;">
+            Automated Daily Apparatus Reports
+          </div>
+        </div>`;
+    }
+
+    function triggerSubmitRouting() {
+      const loc = document.getElementById('locationSelect').value;
+      const shift = document.getElementById('shiftSelect').value;
+      const user = document.getElementById('reporterInput').value.trim();
+      if (!loc || !shift || !user || selectedVehicles.length === 0) { alert("Complete fields and select rigs before submitting."); return; }
+
+      document.getElementById('richEmailPreviewWindow').innerHTML = buildRichReportHtml(loc, shift, user);
+      document.getElementById('routingModal').classList.remove('hidden');
+    }
+
+    function closeRoutingModal() { document.getElementById('routingModal').classList.add('hidden'); }
+
+    async function executeReportPipeline() {
+      const loc = document.getElementById('locationSelect').value; const shift = document.getElementById('shiftSelect').value;
+      const user = document.getElementById('reporterInput').value.trim();
+      const aideEmail = document.getElementById('aideEmail').value.trim(); const oicEmail = document.getElementById('oicEmail').value.trim();
+      
+      closeRoutingModal();
+      const payload = { station: loc, shift, submittedBy: user, aideEmail, oicEmail, reportData: auditStates, htmlMarkup: buildRichReportHtml(loc, shift, user) };
+
+      try {
+        const res = await fetch("http://localhost:3001/api/submit-dar", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+        });
+        const out = await res.json();
+        if (out.success) { alert("🚒 Success! Rich formatted report dispatched to command emails."); } else { alert("Error: " + out.error); }
+      } catch (err) { alert("Connection error: Verify backend server is alive."); }
+    }
+    window.onload = initLayout;
+  </script>
+</body>
+</html>

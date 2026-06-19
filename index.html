@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MFD Apparatus Log</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    @media (min-width: 768px) {
+      .lock-viewport { height: 100vh; overflow: hidden; }
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-neutral-950 text-neutral-100 font-sans antialiased selection:bg-red-600 selection:text-white lock-viewport flex flex-col justify-between">
+
+  <header class="bg-neutral-900 border-b border-neutral-800 px-4 py-3 shrink-0 shadow-md z-40">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3.5 w-full sm:w-auto">
+        <img src="EmbeddedImagemfd.png" alt="MFD Badge" class="h-10 w-auto object-contain shrink-0" onerror="this.src='https://www.cityofmadison.com/sites/default/files/city-of-madison/fire/images/mfd-badge-small.png'">
+        <div class="leading-tight">
+          <h1 class="text-sm font-black uppercase tracking-widest text-neutral-500">Madison Fire Dept</h1>
+          <p class="text-base font-black text-neutral-100 uppercase tracking-wide">Daily Apparatus Log</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto border-t sm:border-t-0 border-neutral-800 pt-2 sm:pt-0">
+        <div class="hidden sm:flex items-center gap-2 bg-neutral-950/80 px-3 py-1.5 rounded-lg border border-neutral-800/80">
+          <span class="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse"></span>
+          <span id="telemetryBadge" class="text-[10px] font-mono uppercase tracking-wider text-neutral-400 font-bold">0 Units Selected</span>
+        </div>
+        <button onclick="resetConsolePipeline()" class="w-full sm:w-auto text-center text-[10px] font-black uppercase tracking-wider bg-neutral-950 hover:bg-neutral-800 text-neutral-400 hover:text-red-400 border border-neutral-800 px-3 py-1.5 rounded-lg transition cursor-pointer">
+          Reset Page
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl w-full mx-auto p-3 md:p-4 flex-grow flex flex-col justify-between overflow-y-auto md:overflow-hidden pb-24 md:pb-4">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-4 items-stretch flex-grow overflow-visible md:overflow-hidden min-h-0">
+      
+      <div class="md:col-span-3 flex flex-col gap-4 shrink-0 order-1">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-xl p-4 shadow-xl">
+          <h2 class="text-xs font-black uppercase tracking-widest text-neutral-400 mb-3.5 border-b border-neutral-800 pb-2 flex items-center gap-2">
+            <span class="w-1.5 h-3 bg-red-600 rounded-sm"></span> Log Details
+          </h2>
+          <div class="flex flex-col gap-3.5">
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1.5">Station / Location</label>
+              <select id="locationSelect" onchange="orchestrateLocationShift()" class="w-full h-11 bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 focus:outline-none focus:border-red-500 text-neutral-100 font-bold cursor-pointer transition shadow-inner"></select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1.5">Shift</label>
+              <div class="grid grid-cols-3 gap-1 bg-neutral-950 p-1 border border-neutral-800 rounded-lg h-11 shadow-inner">
+                <button onclick="commitShiftSelection('A')" id="pillShiftA" class="text-xs font-black rounded-md transition cursor-pointer text-neutral-400 hover:text-white">A</button>
+                <button onclick="commitShiftSelection('B')" id="pillShiftB" class="text-xs font-black rounded-md transition cursor-pointer text-neutral-400 hover:text-white">B</button>
+                <button onclick="commitShiftSelection('C')" id="pillShiftC" class="text-xs font-black rounded-md transition cursor-pointer text-neutral-400 hover:text-white">C</button>
+              </div>
+              <input type="hidden" id="shiftSelect" value="">
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1.5">Logging Officer</label>
+              <input type="text" id="reporterInput" oninput="saveLiveConsoleProgress()" placeholder="e.g. Capt. Davis" class="w-full h-11 bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 focus:outline-none focus:border-red-500 text-neutral-100 placeholder-neutral-700 font-bold shadow-inner">
+            </div>
+          </div>
+        </div>
+
+        <div class="hidden md:flex bg-neutral-900/40 border border-dashed border-neutral-800 rounded-xl p-4 flex-col">
+          <h3 class="text-xs font-black uppercase tracking-widest text-red-500 mb-1">Global Inventory Lookup</h3>
+          <div class="flex flex-col gap-2">
+            <div class="flex gap-1.5">
+              <input type="text" id="globalSearchInput" oninput="executeGlobalInventoryQuery()" placeholder="Filter or inject new asset..." class="w-full h-10 bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 focus:outline-none focus:border-red-500 text-neutral-100 placeholder-neutral-700 font-medium">
+              <button onclick="injectBrandNewAssetGlobally()" title="Create entirely new unit" class="bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white px-3.5 rounded-lg text-sm font-black transition cursor-pointer shrink-0">+</button>
+            </div>
+            <div id="globalInventoryList" class="bg-neutral-950 border border-neutral-800/80 rounded-lg max-h-40 overflow-y-auto flex flex-col divide-y divide-neutral-900 no-scrollbar shadow-inner"></div>
+          </div>
+        </div>
+      </div>
+
+      <section class="md:col-span-4 flex flex-col overflow-visible md:overflow-hidden order-2">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-xl p-4 shadow-xl flex flex-col h-full md:overflow-hidden">
+          <div class="flex justify-between items-center pb-3 border-b border-neutral-800 mb-3 shrink-0">
+            <div class="flex items-center gap-2">
+              <span class="w-1.5 h-3 bg-neutral-500 rounded-sm"></span>
+              <h2 class="text-xs font-black uppercase tracking-widest text-neutral-400">Station Roster</h2>
+            </div>
+            <div id="bulkControls" class="hidden text-[10px] text-neutral-500 font-black uppercase tracking-wider select-none flex items-center gap-2">
+              <span onclick="triggerBulkMatrixToggle(true)" class="hover:text-red-400 cursor-pointer transition">Select All</span>
+              <span class="text-neutral-800">|</span>
+              <span onclick="triggerBulkMatrixToggle(false)" class="hover:text-red-400 cursor-pointer transition">Clear</span>
+            </div>
+          </div>
+          <div id="rosterTargetContainer" class="flex flex-col gap-2 md:overflow-y-auto flex-grow no-scrollbar pr-0.5">
+            <div class="text-xs text-neutral-600 italic border border-neutral-800/60 rounded-xl p-6 bg-neutral-950/20 text-center my-auto">Select a station to display its assigned apparatus.</div>
+          </div>
+        </div>
+      </section>
+
+      <section id="paneAuditMatrix" class="hidden md:flex md:col-span-5 flex flex-col overflow-hidden order-3">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-xl p-4 shadow-xl flex flex-col h-full overflow-hidden">
+          <div class="pb-3 border-b border-neutral-800 mb-3 shrink-0 flex items-center gap-2">
+            <span class="w-1.5 h-3 bg-red-600 rounded-sm"></span>
+            <h2 class="text-xs font-black uppercase tracking-widest text-neutral-400">Status & Maintenance Notes</h2>
+          </div>
+          
+          <div id="evaluationListContainer" class="flex flex-col gap-3 overflow-y-auto flex-grow no-scrollbar pr-0.5">
+            <div class="text-xs text-neutral-600 italic border border-dashed border-neutral-800 rounded-xl p-8 text-center bg-neutral-950/10 my-auto">No apparatus selected. Tap items in the roster list to adjust their status.</div>
+          </div>
+
+          <div class="pt-3 border-t border-neutral-800 mt-3 shrink-0">
+            <button onclick="packageAndReviewLogSubmission()" class="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest text-xs py-4 rounded-xl shadow-xl shadow-red-950/50 cursor-pointer transition transform active:scale-[0.995]">
+              Submit Shift Log
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <div class="md:hidden bg-neutral-900/40 border border-dashed border-neutral-800 rounded-xl p-4 flex flex-col order-4 mt-2">
+        <h3 class="text-xs font-black uppercase tracking-widest text-red-500 mb-1">Global Inventory Lookup</h3>
+        <div class="flex flex-col gap-2">
+          <div class="flex gap-1.5">
+            <input type="text" id="globalSearchInputMobile" oninput="executeGlobalInventoryQuery(true)" placeholder="Filter or inject new asset..." class="w-full h-10 bg-neutral-950 border border-neutral-800 text-xs rounded-lg px-3 focus:outline-none focus:border-red-500 text-neutral-100 placeholder-neutral-700 font-medium">
+            <button onclick="injectBrandNewAssetGlobally(true)" title="Create entirely new unit" class="bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-white px-3.5 rounded-lg text-sm font-black transition cursor-pointer shrink-0">+</button>
+          </div>
+          <div id="globalInventoryListMobile" class="bg-neutral-950 border border-neutral-800/80 rounded-lg max-h-40 overflow-y-auto flex flex-col divide-y divide-neutral-900 no-scrollbar shadow-inner"></div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <div id="mobileStatusBarCompanion" class="md:hidden fixed bottom-0 left-0 right-0 bg-neutral-900/95 backdrop-blur border-t border-neutral-800 px-4 py-3.5 flex items-center justify-between z-40 shadow-2xl">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+      <span id="telemetryBadgeMobile" class="text-xs font-mono uppercase tracking-wider text-neutral-300 font-bold">0 Selected</span>
+    </div>
+    <button onclick="packageAndReviewLogSubmission()" class="bg-red-600 text-white font-black uppercase tracking-wider text-[11px] px-4 py-2.5 rounded-lg shadow-lg animate-pulse">
+      Review & Submit
+    </button>
+  </div>
+
+  <div id="transferPortalModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+    <div class="bg-neutral-900 border border-neutral-800 w-full max-w-sm rounded-xl shadow-2xl overflow-hidden">
+      <div class="bg-neutral-950 border-b border-neutral-800 p-4">
+        <h3 class="text-xs font-black uppercase tracking-widest text-neutral-300">Transfer Apparatus</h3>
+      </div>
+      <div class="p-5 flex flex-col gap-4">
+        <p class="text-xs text-neutral-400">Moving unit: <span id="transferTargetText" class="font-mono font-black text-red-400"></span></p>
+        <div id="transferHistoryContext" class="hidden text-[11px] bg-amber-950/40 border border-amber-900/60 rounded-lg p-2.5 text-amber-300"></div>
+        <div>
+          <label class="block text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1.5">New Station Assignment</label>
+          <select id="transferDestinationDropdown" class="w-full h-11 bg-neutral-950 border border-neutral-800 rounded-lg p-2.5 text-xs text-neutral-100 font-bold focus:outline-none focus:border-red-500 shadow-inner"></select>
+        </div>
+      </div>
+      <div class="bg-neutral-950 px-4 py-3 border-t border-neutral-800 flex justify-between gap-2">
+        <button onclick="executeTransferRollback()" id="rollbackTransferBtn" class="hidden bg-amber-700 hover:bg-amber-800 text-neutral-950 text-xs font-black uppercase tracking-wider px-4 py-2 rounded-lg cursor-pointer transition">Revert Transfer</button>
+        <div class="flex gap-2 ml-auto">
+          <button onclick="closeTransferPortalModal()" class="bg-neutral-900 text-neutral-400 border border-neutral-800 text-xs px-4 py-2 rounded-lg font-bold cursor-pointer">Cancel</button>
+          <button onclick="executeTransferPortalRelocation()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider px-5 py-2 rounded-lg cursor-pointer">Confirm Transfer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="distributionReviewModal" class="hidden fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+    <div class="bg-neutral-900 border border-neutral-800 w-full max-w-2xl rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="bg-neutral-950 border-b border-neutral-800 p-4 flex justify-between items-center shrink-0">
+        <h3 class="text-xs font-black uppercase tracking-widest text-neutral-300">Review Report Data</h3>
+        <button onclick="closeDistributionReviewModal()" class="text-neutral-500 hover:text-neutral-300 font-bold text-sm cursor-pointer">✕</button>
+      </div>
+      <div class="p-4 overflow-y-auto flex flex-col gap-4 bg-neutral-950 no-scrollbar flex-grow">
+        <div id="htmlEmailLiveMarkupWorkspace" class="bg-white text-neutral-900 rounded-xl p-1 max-h-[380px] overflow-y-auto shadow-2xl border border-neutral-200"></div>
+        
+        <div class="border-t border-neutral-800 pt-4 shrink-0">
+          <p class="text-xs font-black uppercase tracking-wider text-red-500 mb-2">Email to:</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1.5">OIC</label>
+              <input type="email" id="oicRoutingAddress" value="" placeholder="Enter OIC email" class="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-neutral-100 focus:outline-none focus:border-red-500 font-mono">
+            </div>
+            <div>
+              <label class="block text-[10px] font-black uppercase tracking-wider text-neutral-400 mb-1.5">Chief's Aide</label>
+              <input type="email" id="aideRoutingAddress" value="" placeholder="Enter Aide email" class="w-full bg-neutral-900 border border-neutral-800 rounded-lg p-2.5 text-xs text-neutral-100 focus:outline-none focus:border-red-500 font-mono">
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div class="bg-neutral-950 px-4 py-3 border-t border-neutral-800 flex justify-end gap-2 shrink-0">
+        <button onclick="closeDistributionReviewModal()" class="bg-neutral-900 text-neutral-400 border border-neutral-800 text-xs px-4 py-2 rounded-lg font-bold cursor-pointer">Back</button>
+        <button onclick="executeFinalLogPipelineTransmission()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase tracking-wider px-6 py-2 rounded-lg shadow-lg cursor-pointer">Send Report</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const INITIAL_FACTORY_BLUEPRINT = {
+      "Station 1": ["L1/901", "E41/824", "C31/2744", "C42P/2852", "LR1/8776", "LR2/8780", "LR3/8779", "C43/2853", "Training Ladder/943"],
+      "Station 2": ["L2/905", "M2/966", "L52/942"],
+      "Station 3": ["E3/828", "M3/968", "E43/826", "SQ8/902"],
+      "Station 4": ["E4/836", "M4/967", "M67/950"],
+      "Station 5": ["E5/831", "M5/962"],
+      "Station 6": ["E6/832", "M6/957"],
+      "Station 7": ["L7/900", "E7/834", "M7/963", "HIT7/960", "C56/1802"],
+      "Station 8": ["L8/945", "E42/822", "M66/970", "TR4/7652", "TR3/803", "C55P/2875"],
+      "Station 9": ["E9/837", "SQ9/948"],
+      "Station 10": ["E10/833", "M10/969", "C48/2636", "TR6/7504", "FireMarshal/1709", "C46/2691", "EMS Coord/1735", "C32/2856"],
+      "Station 11": ["E11/829", "M11/959", "C80/2826", "C41P/838", "C44/2616", "EMS Tr SUV/1895", "TR1/801"],
+      "Station 12": ["E12/830", "C49P/2885", "TR17/7654"],
+      "Station 13": ["E13/840", "M63/953", "M64/952"],
+      "Station 14": ["L14/904", "L50/903", "E40/825", "ATV1/956", "Training Engine/821", "TR9/7673", "TR11/7676", "TR14/7690"],
+      "Nakoosa": ["M62/958", "E1/827", "M8/964", "L51/944", "M61/955", "E8/839", "ATV2-8066", "TR2/7521", "TR16/7697", "UTV1-961", "M65/949", "C52/1710", "TR15/7681", "UTV2-965"],
+      "Radio Shop": ["005/924", "005/926", "005/916"],
+      "E. Wash.": ["042", "043", "044", "C45", "C46", "C47", "C48"],
+      "Staff Vehicles": ["Explorer TRN", "F250 TRN", "F250 LR3", "F250 LR1", "TRN - Van", "EMS TRN", "Comm Ed Van", "PIO"],
+      "Available / Emergency Use / OOS": ["C40", "C50", "C51", "C56", "C53", "C54", "C55", "C57", "C80", "CARES 4/975", "CARES 3/974", "CARES 1/972", "CARES 2/973", "C40/1852", "C50/1896", "C531613/", "CARES", "F450 LR", "Comm Med", "EMS TRN", "F350 HURT", "F250 Arson"],
+      "ATVs / UTVs / Trailers": ["ATV 1 / 955 / GEM", "ATV 2 / 8066 / Mini-Med", "UTV 1 / 961 / Polaris Ranger", "UTV 2 / 965 / Polaris Ranger", "TR-1 (36' Enclosed)", "TR-2 (Polaris UTV)", "TR-3 (Lumber)", "TR-4 (HURT Trailer)", "TR-6 (Comm Ed)", "TR-7", "TR-8", "TR-11 (Training)", "TR-14 (Roof Vent)", "TR-15 (Mini Med)", "TR-16", "TR-17", "TR-18", "LR 1 (Humbler/Utility)", "LR1 (L-Assault)", "LR 2 (MCI)", "LR2 (Jon Boat)", "LR 3", "LR3 (Air Boat)", "C54/2831", "Hose Tester", "Brush 12"]
+    };
+
+    let REGISTRY_MODS = JSON.parse(localStorage.getItem('mfd_registry_mods')) || { added: {}, removed: [] };
+    let runtimeTransferHistory = JSON.parse(localStorage.getItem('mfd_runtime_transfers')) || {};
+
+    function generateConsolidatedManifest() {
+      let base = JSON.parse(JSON.stringify(INITIAL_FACTORY_BLUEPRINT));
+      Object.keys(base).forEach(loc => { base[loc] = base[loc].filter(asset => !REGISTRY_MODS.removed.includes(asset)); });
+      Object.keys(REGISTRY_MODS.added).forEach(asset => {
+        const targetLoc = REGISTRY_MODS.added[asset];
+        Object.keys(base).forEach(loc => { base[loc] = base[loc].filter(v => v !== asset); });
+        if (targetLoc && base[targetLoc] && !REGISTRY_MODS.removed.includes(asset)) { base[targetLoc].push(asset); }
+      });
+      return base;
+    }
+
+    let CONSOLE_MANIFEST = JSON.parse(localStorage.getItem('mfd_console_manifest')) || generateConsolidatedManifest();
+    let CONSOLE_GLOBAL_POOL = JSON.parse(localStorage.getItem('mfd_console_global_pool')) || Array.from(new Set(Object.values(INITIAL_FACTORY_BLUEPRINT).flat())).sort();
+
+    let runtimeSelectedAssets = JSON.parse(localStorage.getItem('mfd_runtime_selected')) || [];
+    let runtimeAuditStates = JSON.parse(localStorage.getItem('mfd_runtime_audit_states')) || {};
+    let activeTransferAssetFlag = null;
+
+    function saveLiveConsoleProgress() {
+      localStorage.setItem('mfd_console_manifest', JSON.stringify(CONSOLE_MANIFEST));
+      localStorage.setItem('mfd_console_global_pool', JSON.stringify(CONSOLE_GLOBAL_POOL));
+      localStorage.setItem('mfd_registry_mods', JSON.stringify(REGISTRY_MODS));
+      localStorage.setItem('mfd_runtime_selected', JSON.stringify(runtimeSelectedAssets));
+      localStorage.setItem('mfd_runtime_audit_states', JSON.stringify(runtimeAuditStates));
+      localStorage.setItem('mfd_runtime_transfers', JSON.stringify(runtimeTransferHistory));
+      localStorage.setItem('mfd_active_location', document.getElementById('locationSelect').value);
+      localStorage.setItem('mfd_active_shift', document.getElementById('shiftSelect').value);
+      localStorage.setItem('mfd_active_officer', document.getElementById('reporterInput').value);
+    }
+
+    function refreshTelemetryWidget() {
+      const count = runtimeSelectedAssets.length;
+      document.getElementById('telemetryBadge').innerText = `${count} Unit${count === 1 ? '' : 's'} Selected`;
+      document.getElementById('telemetryBadgeMobile').innerText = `${count} Selected`;
+    }
+
+    function bootstrapConsoleArchitecture() {
+      const selectLoc = document.getElementById('locationSelect');
+      const destSelect = document.getElementById('transferDestinationDropdown');
+      selectLoc.innerHTML = '<option value="">Select Station...</option>';
+      destSelect.innerHTML = '';
+      
+      Object.keys(CONSOLE_MANIFEST).forEach(loc => {
+        const option = document.createElement('option'); option.value = loc; option.innerText = loc; selectLoc.appendChild(option);
+        const destOption = document.createElement('option'); destOption.value = loc; destOption.innerText = loc; destSelect.appendChild(destOption);
+      });
+
+      const cachedLoc = localStorage.getItem('mfd_active_location');
+      const cachedShift = localStorage.getItem('mfd_active_shift');
+      const cachedOfficer = localStorage.getItem('mfd_active_officer');
+
+      if (cachedLoc) selectLoc.value = cachedLoc;
+      if (cachedShift) commitShiftSelection(cachedShift);
+      if (cachedOfficer) document.getElementById('reporterInput').value = cachedOfficer;
+
+      orchestrateLocationShift(true);
+      executeGlobalInventoryQuery();
+      executeGlobalInventoryQuery(true);
+    }
+
+    function commitShiftSelection(shiftLetter) {
+      document.getElementById('shiftSelect').value = shiftLetter;
+      ['A', 'B', 'C'].forEach(letter => {
+        document.getElementById(`pillShiftA`).className = "text-xs font-black rounded-md transition text-neutral-400 hover:text-white cursor-pointer";
+        document.getElementById(`pillShiftB`).className = "text-xs font-black rounded-md transition text-neutral-400 hover:text-white cursor-pointer";
+        document.getElementById(`pillShiftC`).className = "text-xs font-black rounded-md transition text-neutral-400 hover:text-white cursor-pointer";
+      });
+      if (shiftLetter) { document.getElementById(`pillShift${shiftLetter}`).className = "text-xs font-black rounded-md transition bg-red-600 text-white shadow-md cursor-pointer"; }
+      saveLiveConsoleProgress();
+    }
+
+    function orchestrateLocationShift(isInitialBoot = false) {
+      const loc = document.getElementById('locationSelect').value;
+      if (!isInitialBoot) { runtimeSelectedAssets = []; runtimeAuditStates = {}; }
+      executeDiagnosticGridRender(); 
+      refreshTelemetryWidget();
+      
+      if (!loc) {
+        document.getElementById('rosterTargetContainer').innerHTML = '<div class="text-xs text-neutral-600 italic border border-neutral-800/60 rounded-xl p-6 bg-neutral-950/20 text-center my-auto">Select a station to display its assigned apparatus.</div>';
+        document.getElementById('bulkControls').classList.add('hidden');
+        return;
+      }
+      document.getElementById('bulkControls').classList.remove('hidden');
+      executeRosterArrayRender();
+      if (!isInitialBoot) saveLiveConsoleProgress();
+    }
+
+    function executeRosterArrayRender() {
+      const loc = document.getElementById('locationSelect').value; 
+      const container = document.getElementById('rosterTargetContainer');
+      if (!loc) return; container.innerHTML = '';
+      
+      if (!CONSOLE_MANIFEST[loc] || CONSOLE_MANIFEST[loc].length === 0) {
+        container.innerHTML = '<div class="text-xs text-neutral-600 italic border border-dashed border-neutral-800/60 rounded-xl p-6 bg-neutral-950/10 text-center my-auto">No apparatus currently mapped to this station.</div>';
+        return;
+      }
+
+      CONSOLE_MANIFEST[loc].forEach(asset => {
+        const isSelected = runtimeSelectedAssets.includes(asset);
+        const isTransferred = runtimeAuditStates[asset] && runtimeAuditStates[asset].status === 'Transferred Out';
+        const state = runtimeAuditStates[asset] || { status: 'In-Service', reason: '' };
+        
+        const card = document.createElement('div');
+        card.className = `flex flex-col border rounded-xl transition select-none ${isSelected ? 'bg-neutral-900 border-red-800/60 shadow-inner' : 'bg-neutral-950 border-neutral-800 text-neutral-400 hover:border-neutral-700'}`;
+        
+        card.innerHTML = `
+          <div class="flex items-center justify-between p-3.5 cursor-pointer">
+            <div onclick="toggleAssetDiagnosticStaging('${asset}')" class="grow flex items-center gap-3.5 py-1">
+              <span class="w-3 h-3 rounded-full border ${isSelected ? 'bg-red-500 border-red-400 shadow-[0_0_10px_rgba(239,68,68,0.7)]' : 'border-neutral-700 bg-neutral-900'}"></span>
+              <span class="tracking-wide text-xs font-bold ${isSelected ? 'text-neutral-100' : 'text-neutral-400'}">${asset} ${isTransferred ? '<span class="text-amber-500 text-[10px] font-normal ml-1">(Transferred)</span>' : ''}</span>
+            </div>
+            <div class="flex items-center gap-2" onclick="event.stopPropagation();">
+              <button onclick="deployTransferPortal('${asset}')" class="text-neutral-500 hover:text-amber-400 font-bold p-2 text-xs rounded-lg bg-neutral-900 border border-neutral-800 transition cursor-pointer">🔄</button>
+              <button onclick="purgeAssetFromLocalRoster('${asset}')" class="text-neutral-500 hover:text-red-500 font-bold p-2 text-xs rounded-lg bg-neutral-900 border border-neutral-800 transition cursor-pointer">✕</button>
+            </div>
+          </div>
+          
+          <div class="md:hidden ${isSelected ? 'flex' : 'hidden'} flex-col gap-3 px-3.5 pb-3.5 pt-1 border-t border-neutral-800/60 bg-neutral-950/60 rounded-b-xl">
+            <div class="flex gap-1 bg-neutral-900 p-1 border border-neutral-800 rounded-lg w-full">
+              <button onclick="modifyAssetStatusFlag('${asset}', 'In-Service')" class="flex-1 py-2 text-[10px] font-black uppercase rounded transition ${state.status === 'In-Service' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60' : 'text-neutral-500'}">In-Service</button>
+              <button onclick="modifyAssetStatusFlag('${asset}', 'OOS - Emergency Use Only')" class="flex-1 py-2 text-[10px] font-black uppercase rounded transition ${state.status === 'OOS - Emergency Use Only' ? 'bg-amber-950 text-amber-400 border border-amber-800/60' : 'text-neutral-500'}">Emergency</button>
+              <button onclick="modifyAssetStatusFlag('${asset}', 'OOS')" class="flex-1 py-2 text-[10px] font-black uppercase rounded transition ${state.status === 'OOS' ? 'bg-red-950 text-red-400 border border-red-800/60' : 'text-neutral-500'}">OOS</button>
+            </div>
+            <input type="text" value="${state.reason}" oninput="commitAssetDiscrepancyNotes('${asset}', this.value)" placeholder="Enter maintenance notes or shift detail details..." class="bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 rounded-lg px-3 h-9 w-full focus:outline-none focus:border-red-500 placeholder-neutral-700">
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function toggleAssetDiagnosticStaging(asset) {
+      if (runtimeSelectedAssets.includes(asset)) {
+        runtimeSelectedAssets = runtimeSelectedAssets.filter(v => v !== asset);
+        delete runtimeAuditStates[asset];
+      } else {
+        runtimeSelectedAssets.push(asset);
+        runtimeAuditStates[asset] = { status: 'In-Service', reason: '' };
+      }
+      executeRosterArrayRender(); executeDiagnosticGridRender(); refreshTelemetryWidget(); saveLiveConsoleProgress();
+    }
+
+    function executeDiagnosticGridRender() {
+      const container = document.getElementById('evaluationListContainer'); container.innerHTML = '';
+      if (runtimeSelectedAssets.length === 0) {
+        container.innerHTML = '<div class="text-xs text-neutral-600 italic border border-dashed border-neutral-800 rounded-xl p-8 text-center bg-neutral-950/10 my-auto">No apparatus selected.</div>'; return;
+      }
+      runtimeSelectedAssets.forEach(asset => {
+        const state = runtimeAuditStates[asset] || { status: 'In-Service', reason: '' }; 
+        const row = document.createElement('div');
+        row.className = "bg-neutral-950 border border-neutral-800 p-4 rounded-xl flex flex-col gap-3 relative group shadow-lg";
+        
+        row.innerHTML = `
+          <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 pr-8">
+            <span class="text-xs font-black tracking-wider text-neutral-200">${asset}</span>
+            <div class="flex flex-wrap gap-1 bg-neutral-900 p-1 border border-neutral-800 rounded-lg w-full lg:w-auto">
+              <button onclick="modifyAssetStatusFlag('${asset}', 'In-Service')" class="flex-1 lg:flex-none px-2.5 py-1 text-[10px] font-black uppercase rounded transition ${state.status === 'In-Service' ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/60' : 'text-neutral-500'}">In-Service</button>
+              <button onclick="modifyAssetStatusFlag('${asset}', 'OOS - Emergency Use Only')" class="flex-1 lg:flex-none px-2.5 py-1 text-[10px] font-black uppercase rounded transition ${state.status === 'OOS - Emergency Use Only' ? 'bg-amber-950 text-amber-400 border border-amber-800/60' : 'text-neutral-500'}">Emergency</button>
+              <button onclick="modifyAssetStatusFlag('${asset}', 'OOS')" class="flex-1 lg:flex-none px-2.5 py-1 text-[10px] font-black uppercase rounded transition ${state.status === 'OOS' ? 'bg-red-950 text-red-400 border border-red-800/60' : 'text-neutral-500'}">OOS</button>
+            </div>
+          </div>
+          <input type="text" value="${state.reason}" oninput="commitAssetDiscrepancyNotes('${asset}', this.value)" placeholder="Enter maintenance issues..." class="bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 rounded-lg px-3 py-2 w-full focus:outline-none focus:border-red-500 placeholder-neutral-700 font-medium">
+          <button onclick="toggleAssetDiagnosticStaging('${asset}')" class="absolute top-4 right-4 text-neutral-600 hover:text-red-500 font-black text-sm cursor-pointer p-1 transition opacity-60">✕</button>`;
+        container.appendChild(row);
+      });
+    }
+
+    function modifyAssetStatusFlag(asset, statusText) { 
+      if(statusText !== 'Transferred Out' && runtimeTransferHistory[asset]) { delete runtimeTransferHistory[asset]; }
+      runtimeAuditStates[asset].status = statusText; 
+      executeDiagnosticGridRender(); 
+      executeRosterArrayRender();
+      saveLiveConsoleProgress(); 
+    }
+    
+    function commitAssetDiscrepancyNotes(asset, valuationText) { runtimeAuditStates[asset].reason = valuationText; saveLiveConsoleProgress(); }
+
+    function executeGlobalInventoryQuery(isMobile = false) {
+      const inputId = isMobile ? 'globalSearchInputMobile' : 'globalSearchInput';
+      const containerId = isMobile ? 'globalInventoryListMobile' : 'globalInventoryList';
+      
+      const query = document.getElementById(inputId).value.toLowerCase().trim();
+      const container = document.getElementById(containerId); container.innerHTML = '';
+      const currentLoc = document.getElementById('locationSelect').value;
+
+      const filtered = CONSOLE_GLOBAL_POOL.filter(asset => asset.toLowerCase().includes(query));
+      if (filtered.length === 0) { container.innerHTML = '<div class="p-3 text-center text-neutral-600 text-xs italic">No matching units.</div>'; return; }
+      
+      filtered.forEach(asset => {
+        let currentHome = "Unassigned";
+        for (const [station, units] of Object.entries(CONSOLE_MANIFEST)) { if (units.includes(asset)) { currentHome = station; break; } }
+        const isAtCurrentLoc = (currentHome === currentLoc);
+
+        const row = document.createElement('div'); 
+        row.className = "w-full flex justify-between items-center p-2 text-xs hover:bg-neutral-900/60 text-neutral-300 gap-2";
+        row.innerHTML = `
+          <div class="flex flex-col min-w-0 grow">
+            <span class="font-bold text-neutral-200 truncate">${asset}</span>
+            <span class="text-[9px] text-neutral-500 truncate">Housed: ${currentHome}</span>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            ${(!isAtCurrentLoc && currentLoc) ? `<button onclick="forceInjectAssetFromGlobalRegistry('${asset}')" class="bg-neutral-800 border border-neutral-700 text-neutral-300 px-2 py-1 rounded text-[10px] font-black">+ Assign</button>` : ''}
+            <button onclick="purgeAssetCompletelyFromGlobalPool('${asset}')" class="text-neutral-600 hover:text-red-500 p-1 text-sm">🗑️</button>
+          </div>`;
+        container.appendChild(row);
+      });
+    }
+
+    function injectBrandNewAssetGlobally(isMobile = false) {
+      const inputId = isMobile ? 'globalSearchInputMobile' : 'globalSearchInput';
+      const input = document.getElementById(inputId); const value = input.value.trim();
+      const loc = document.getElementById('locationSelect').value;
+      if (!value || !loc) { alert("Please select a station and enter a unit name."); return; }
+      
+      REGISTRY_MODS.removed = REGISTRY_MODS.removed.filter(v => v !== value);
+      REGISTRY_MODS.added[value] = loc;
+      CONSOLE_GLOBAL_POOL.push(value); CONSOLE_GLOBAL_POOL.sort(); CONSOLE_MANIFEST[loc].push(value);
+      
+      if (!runtimeSelectedAssets.includes(value)) { runtimeSelectedAssets.push(value); runtimeAuditStates[value] = { status: 'In-Service', reason: '' }; }
+      saveLiveConsoleProgress(); input.value = ''; executeGlobalInventoryQuery(false); executeGlobalInventoryQuery(true); executeRosterArrayRender(); executeDiagnosticGridRender(); refreshTelemetryWidget();
+    }
+
+    function purgeAssetCompletelyFromGlobalPool(asset) {
+      if (!confirm(`Delete "${asset}"?`)) return;
+      if (REGISTRY_MODS.added[asset]) delete REGISTRY_MODS.added[asset];
+      if (!REGISTRY_MODS.removed.includes(asset)) REGISTRY_MODS.removed.push(asset);
+      CONSOLE_GLOBAL_POOL = CONSOLE_GLOBAL_POOL.filter(v => v !== asset);
+      Object.keys(CONSOLE_MANIFEST).forEach(loc => { CONSOLE_MANIFEST[loc] = CONSOLE_MANIFEST[loc].filter(v => v !== asset); });
+      runtimeSelectedAssets = runtimeSelectedAssets.filter(v => v !== asset); delete runtimeAuditStates[asset];
+      saveLiveConsoleProgress(); executeGlobalInventoryQuery(false); executeGlobalInventoryQuery(true); executeRosterArrayRender(); executeDiagnosticGridRender(); refreshTelemetryWidget();
+    }
+
+    function forceInjectAssetFromGlobalRegistry(targetAsset) {
+      const loc = document.getElementById('locationSelect').value; if (!loc) return;
+      Object.keys(CONSOLE_MANIFEST).forEach(station => { CONSOLE_MANIFEST[station] = CONSOLE_MANIFEST[station].filter(v => v !== targetAsset); });
+      REGISTRY_MODS.removed = REGISTRY_MODS.removed.filter(v => v !== targetAsset);
+      REGISTRY_MODS.added[targetAsset] = loc;
+      CONSOLE_MANIFEST[loc].push(targetAsset);
+      if (!runtimeSelectedAssets.includes(targetAsset)) { runtimeSelectedAssets.push(targetAsset); runtimeAuditStates[targetAsset] = { status: 'In-Service', reason: '' }; }
+      saveLiveConsoleProgress(); document.getElementById('globalSearchInput').value = ''; document.getElementById('globalSearchInputMobile').value = ''; executeGlobalInventoryQuery(false); executeGlobalInventoryQuery(true); executeRosterArrayRender(); executeDiagnosticGridRender(); refreshTelemetryWidget();
+    }
+
+    function deployTransferPortal(asset) { 
+      activeTransferAssetFlag = asset; const currentLoc = document.getElementById('locationSelect').value;
+      document.getElementById('transferTargetText').innerText = asset; document.getElementById('transferDestinationDropdown').value = currentLoc; 
+      const historyContextBox = document.getElementById('transferHistoryContext'); const rollbackBtn = document.getElementById('rollbackTransferBtn');
+      
+      if (runtimeTransferHistory[asset]) {
+        historyContextBox.innerHTML = `⚠️ This unit was transferred away from <strong>${runtimeTransferHistory[asset].from}</strong>.`;
+        historyContextBox.classList.remove('hidden'); rollbackBtn.classList.remove('hidden');
+      } else { historyContextBox.classList.add('hidden'); rollbackBtn.classList.add('hidden'); }
+      document.getElementById('transferPortalModal').classList.remove('hidden'); 
+    }
+    
+    function closeTransferPortalModal() { document.getElementById('transferPortalModal').classList.add('hidden'); activeTransferAssetFlag = null; }
+    
+    function executeTransferPortalRelocation() {
+      const dest = document.getElementById('transferDestinationDropdown').value; const currentLoc = document.getElementById('locationSelect').value;
+      if (!activeTransferAssetFlag || !currentLoc || !dest || currentLoc === dest) { closeTransferPortalModal(); return; }
+      if (!runtimeTransferHistory[activeTransferAssetFlag]) { runtimeTransferHistory[activeTransferAssetFlag] = { from: currentLoc, to: dest }; }
+      else { runtimeTransferHistory[activeTransferAssetFlag].to = dest; }
+      CONSOLE_MANIFEST[currentLoc] = CONSOLE_MANIFEST[currentLoc].filter(v => v !== activeTransferAssetFlag);
+      if (!runtimeSelectedAssets.includes(activeTransferAssetFlag)) { runtimeSelectedAssets.push(activeTransferAssetFlag); }
+      runtimeAuditStates[activeTransferAssetFlag] = { status: 'Transferred Out', reason: `Transferred from ${currentLoc} to ${dest}` };
+      saveLiveConsoleProgress(); closeTransferPortalModal(); executeRosterArrayRender(); executeDiagnosticGridRender();
+    }
+
+    function executeTransferRollback() {
+      if (!activeTransferAssetFlag || !runtimeTransferHistory[activeTransferAssetFlag]) return;
+      const originalHome = runtimeTransferHistory[activeTransferAssetFlag].from; const currentLoc = document.getElementById('locationSelect').value;
+      if (!CONSOLE_MANIFEST[originalHome].includes(activeTransferAssetFlag)) { CONSOLE_MANIFEST[originalHome].push(activeTransferAssetFlag); }
+      if (currentLoc === originalHome) { if (runtimeAuditStates[activeTransferAssetFlag]) { runtimeAuditStates[activeTransferAssetFlag].status = 'In-Service'; runtimeAuditStates[activeTransferAssetFlag].reason = ''; } }
+      else { runtimeSelectedAssets = runtimeSelectedAssets.filter(v => v !== activeTransferAssetFlag); delete runtimeAuditStates[activeTransferAssetFlag]; }
+      delete runtimeTransferHistory[activeTransferAssetFlag];
+      saveLiveConsoleProgress(); closeTransferPortalModal(); executeRosterArrayRender(); executeDiagnosticGridRender(); refreshTelemetryWidget();
+    }
+
+    function purgeAssetFromLocalRoster(asset) {
+      const loc = document.getElementById('locationSelect').value; if (!loc) return;
+      if(!confirm(`Remove "${asset}" from structural assignment?`)) return;
+      CONSOLE_MANIFEST[loc] = CONSOLE_MANIFEST[loc].filter(v => v !== asset);
+      runtimeSelectedAssets = runtimeSelectedAssets.filter(v => v !== asset); delete runtimeAuditStates[asset];
+      REGISTRY_MODS.added[asset] = "Available / Emergency Use / OOS"; 
+      if (!CONSOLE_MANIFEST["Available / Emergency Use / OOS"].includes(asset)) { CONSOLE_MANIFEST["Available / Emergency Use / OOS"].push(asset); }
+      saveLiveConsoleProgress(); executeRosterArrayRender(); executeDiagnosticGridRender(); executeGlobalInventoryQuery(false); executeGlobalInventoryQuery(true); refreshTelemetryWidget();
+    }
+
+    function triggerBulkMatrixToggle(shouldSelectAll) {
+      const loc = document.getElementById('locationSelect').value; if (!loc) return;
+      if (shouldSelectAll) {
+        runtimeSelectedAssets = [...CONSOLE_MANIFEST[loc]];
+        runtimeSelectedAssets.forEach(asset => { if (!runtimeAuditStates[asset]) runtimeAuditStates[asset] = { status: 'In-Service', reason: '' }; });
+      } else { runtimeSelectedAssets = []; runtimeAuditStates = {}; }
+      executeRosterArrayRender(); executeDiagnosticGridRender(); refreshTelemetryWidget(); saveLiveConsoleProgress();
+    }
+
+    // PDF-Optimized Markup Generator
+    function generateLogMailMarkup(loc, shift, user) {
+      let rows = '';
+      runtimeSelectedAssets.forEach((asset) => {
+        const data = runtimeAuditStates[asset];
+        let badge = `<span style="padding: 4px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; background: #e2f8f0; color: #117454; text-transform: uppercase; white-space: nowrap; display: inline-block;">In-Service</span>`;
+        
+        if (data.status === 'OOS') {
+          badge = `<span style="padding: 4px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; background: #fee2e2; color: #991b1b; text-transform: uppercase; white-space: nowrap; display: inline-block;">Out Of Service</span>`;
+        }
+        if (data.status === 'OOS - Emergency Use Only') {
+          badge = `<span style="padding: 4px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; background: #fef3c7; color: #92400e; text-transform: uppercase; white-space: nowrap; display: inline-block;">Emergency Only</span>`;
+        }
+        if (data.status === 'Transferred Out') {
+          badge = `<span style="padding: 4px 8px; font-size: 11px; font-weight: bold; border-radius: 4px; background: #eff6ff; color: #1e40af; text-transform: uppercase; white-space: nowrap; display: inline-block;">Transferred</span>`;
+        }
+
+        rows += `
+          <tr style="border-bottom: 1px solid #e5e7eb; page-break-inside: avoid;">
+            <td style="padding: 12px; width: 20%; font-weight: bold; color: #111827; vertical-align: top;">${asset}</td>
+            <td style="padding: 12px; width: 25%; vertical-align: top;">${badge}</td>
+            <td style="padding: 12px; width: 55%; color: #4b5563; font-style: italic; vertical-align: top; word-break: break-word;">${data.reason || 'None'}</td>
+          </tr>`;
+      });
+
+      return `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; max-width: 680px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden; background: #ffffff;">
+          <div style="background: linear-gradient(135deg, #7f1d1d 0%, #111827 100%); padding: 24px; text-align: center; color: white;">
+            <div style="display: inline-block; vertical-align: middle; margin-right: 12px;">
+              <img src="EmbeddedImagemfd.png" alt="MFD Badge" style="height: 45px; width: auto; display: block;" onerror="this.src='https://www.cityofmadison.com/sites/default/files/city-of-madison/fire/images/mfd-badge-small.png'">
+            </div>
+            <div style="display: inline-block; vertical-align: middle; text-align: left; max-width: 500px;">
+              <h2 style="margin: 0; text-transform: uppercase; font-size: 20px; letter-spacing: 1px; font-weight: 900; line-height: 1.1;">Madison Fire Department</h2>
+              <p style="margin: 4px 0 0 0; opacity: 0.85; font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">Daily Shift Fleet Log</p>
+            </div>
+          </div>
+          
+          <table style="width: 100%; background: #f9fafb; font-size: 12px; border-bottom: 1px solid #e5e7eb; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 12px 20px; color: #374151;"><strong>Location:</strong> ${loc}</td>
+              <td style="padding: 12px 20px; color: #374151; text-align: center;"><strong>Shift:</strong> ${shift}</td>
+              <td style="padding: 12px 20px; color: #374151; text-align: right;"><strong>Officer:</strong> ${user}</td>
+            </tr>
+          </table>
+          
+          <div style="padding: 20px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; table-layout: fixed;">
+              <thead>
+                <tr style="background: #f3f4f6; color: #4b5563; border-bottom: 2px solid #e5e7eb;">
+                  <th style="padding: 12px; width: 20%; font-weight: 800; text-transform: uppercase; font-size: 11px;">Unit ID</th>
+                  <th style="padding: 12px; width: 25%; font-weight: 800; text-transform: uppercase; font-size: 11px;">Status</th>
+                  <th style="padding: 12px; width: 55%; font-weight: 800; text-transform: uppercase; font-size: 11px;">Discrepancies & Maintenance Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows}
+              </tbody>
+            </table>
+          </div>
+        </div>`;
+    }
+
+    function packageAndReviewLogSubmission() {
+      const loc = document.getElementById('locationSelect').value; const shift = document.getElementById('shiftSelect').value; const user = document.getElementById('reporterInput').value.trim();
+      if (!loc || !shift || !user || runtimeSelectedAssets.length === 0) { alert("Please complete log details and select at least one unit."); return; }
+      document.getElementById('htmlEmailLiveMarkupWorkspace').innerHTML = generateLogMailMarkup(loc, shift, user);
+      document.getElementById('distributionReviewModal').classList.remove('hidden');
+    }
+
+    function closeDistributionReviewModal() {
+      document.getElementById('distributionReviewModal').classList.add('hidden');
+    }
+    
+    async function executeFinalLogPipelineTransmission() {
+      const loc = document.getElementById('locationSelect').value; const shift = document.getElementById('shiftSelect').value; const user = document.getElementById('reporterInput').value.trim();
+      const aideEmail = document.getElementById('aideRoutingAddress').value.trim(); const oicEmail = document.getElementById('oicRoutingAddress').value.trim();
+      
+      if (!oicEmail && !aideEmail) { alert("Please input a recipient email address."); return; }
+      
+      closeDistributionReviewModal();
+      const payload = { station: loc, shift, submittedBy: user, aideEmail, oicEmail, reportData: runtimeAuditStates, htmlMarkup: generateLogMailMarkup(loc, shift, user) };
+      try {
+        const res = await fetch("http://localhost:3001/api/submit-dar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (data.success) { 
+          alert("🚒 Report successfully submitted."); 
+          localStorage.removeItem('mfd_runtime_selected'); 
+          localStorage.removeItem('mfd_runtime_audit_states'); 
+          localStorage.removeItem('mfd_runtime_transfers'); 
+          location.reload(); 
+        } else { alert("Error sending report: " + data.error); }
+      } catch (err) { alert("Could not reach server. Verify connection."); }
+    }
+
+    function resetConsolePipeline() { 
+      if (confirm("Clear active logs for this shift?")) {
+        localStorage.removeItem('mfd_runtime_selected'); localStorage.removeItem('mfd_runtime_audit_states'); localStorage.removeItem('mfd_runtime_transfers');
+        localStorage.removeItem('mfd_active_officer'); localStorage.removeItem('mfd_active_shift');
+        runtimeSelectedAssets = []; runtimeAuditStates = {}; runtimeTransferHistory = {};
+        document.getElementById('reporterInput').value = ''; commitShiftSelection('');
+        orchestrateLocationShift(true); executeGlobalInventoryQuery(false); executeGlobalInventoryQuery(true);
+      } 
+    }
+    
+    window.onload = bootstrapConsoleArchitecture;
+  </script>
+</body>
+</html>
