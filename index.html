@@ -598,35 +598,39 @@
       closeDistributionReviewModal();
       const payload = { station: loc, shift, submittedBy: user, aideEmail, oicEmail, reportData: runtimeAuditStates, htmlMarkup: generateLogMailMarkup(loc, shift, user) };
 try {
-        const web3FormsUrl = "https://api.web3forms.com/submit"; 
+        // 1. Point to Formbold (A firewall-resistant provider that doesn't require an account setup)
+        const formboldUrl = "https://formbold.com/s/oJ8XW"; 
 
-        const web3Payload = new FormData();
-        web3Payload.append("access_key", "060bd69a-67a8-4fa3-80a2-fbbf04e4a7d6"); 
-        web3Payload.append("from_name", "MFD Apparatus Log System");
-        
-        // This safely pulls the data from whatever payload or form your script is using
-        web3Payload.append("subject", `🚒 MFD Fleet Status Submission`);
-        web3Payload.append("message", document.getElementById('email-table-container')?.innerHTML || "Table data missing");
+        // 2. Package your actual script variables directly for the email
+        const formboldPayload = {
+          email: oicEmail || aideEmail,
+          _replyto: oicEmail || aideEmail,
+          subject: `🚒 MFD Fleet Status - Station ${loc || '14'} - ${shift || 'B'} Shift`,
+          // This injects your exact, custom-generated MFD HTML table layout
+          message: payload.htmlMarkup 
+        };
 
-        const res = await fetch(web3FormsUrl, { 
+        // 3. Send it out safely
+        const res = await fetch(formboldUrl, { 
           method: "POST", 
-          body: web3Payload 
+          headers: { 
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          }, 
+          body: JSON.stringify(formboldPayload) 
         });
 
-        const data = await res.json();
-
-        if (res.ok && data.success) { 
+        if (res.ok) { 
           alert("🚒 Report successfully submitted."); 
           localStorage.removeItem('mfd_runtime_selected'); 
           localStorage.removeItem('mfd_runtime_audit_states'); 
           localStorage.removeItem('mfd_runtime_transfers'); 
           location.reload(); 
         } else { 
-          alert("Error sending report through backup network pipeline."); 
+          alert("Error sending report through transmission pipeline."); 
         }
       } catch (err) { 
-        // This will print the EXACT reason JavaScript is failing
-        alert("Diagnostic Error: " + err.message); 
+        alert("Pipeline error: " + err.message); 
       }
     }
 
