@@ -601,12 +601,15 @@ try {
         // 1. Point directly to Formspree
         const formspreeUrl = "https://formspree.io/f/xoqorwky"; 
 
-        // 2. Package the exact variables your script already generated
+        // 2. Package the variables safely
         const formspreePayload = new FormData();
-        formspreePayload.append("email", oicEmail || aideEmail);
-        formspreePayload.append("_replyto", oicEmail || aideEmail);
+        formspreePayload.append("email", oicEmail || aideEmail || "");
+        formspreePayload.append("_replyto", oicEmail || aideEmail || "");
         formspreePayload.append("subject", `🚒 MFD Fleet Status - Station ${loc || '14'} - ${shift || 'B'} Shift`);
-        formspreePayload.append("message", payload.htmlMarkup);
+        
+        // Safety check to ensure markup exists before appending
+        const markup = (payload && payload.htmlMarkup) ? payload.htmlMarkup : "Missing HTML Markup";
+        formspreePayload.append("message", markup);
 
         // 3. Send it out safely
         const res = await fetch(formspreeUrl, { 
@@ -627,7 +630,8 @@ try {
           alert("Error sending report through serverless pipeline."); 
         }
       } catch (err) { 
-        alert("Could not reach serverless provider. Verify connection."); 
+        // THIS WILL UNMASK THE REAL JAVASCRIPT BUG:
+        alert("CRITICAL DIAGNOSTIC ERROR: " + err.name + " - " + err.message); 
       }
     }
 
