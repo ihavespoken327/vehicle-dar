@@ -598,26 +598,24 @@
       closeDistributionReviewModal();
       const payload = { station: loc, shift, submittedBy: user, aideEmail, oicEmail, reportData: runtimeAuditStates, htmlMarkup: generateLogMailMarkup(loc, shift, user) };
 try {
-        // 1. Point directly to Formspree
+        // 1. Direct secure endpoint to Formspree
         const formspreeUrl = "https://formspree.io/f/xoqorwky"; 
 
-        // 2. Package the variables safely
-        const formspreePayload = new FormData();
-        formspreePayload.append("email", oicEmail || aideEmail || "");
-        formspreePayload.append("_replyto", oicEmail || aideEmail || "");
-        formspreePayload.append("subject", `🚒 MFD Fleet Status - Station ${loc || '14'} - ${shift || 'B'} Shift`);
-        
-        // Safety check to ensure markup exists before appending
-        const markup = (payload && payload.htmlMarkup) ? payload.htmlMarkup : "Missing HTML Markup";
-        formspreePayload.append("message", markup);
+        // 2. Package parameters using a basic URL-encoded string to bypass strict CORS checks
+        const urlEncodedData = new URLSearchParams();
+        urlEncodedData.append("email", oicEmail || aideEmail || "");
+        urlEncodedData.append("_replyto", oicEmail || aideEmail || "");
+        urlEncodedData.append("subject", `🚒 MFD Fleet Status - Station ${loc || '14'} - ${shift || 'B'} Shift`);
+        urlEncodedData.append("message", (payload && payload.htmlMarkup) ? payload.htmlMarkup : "Missing HTML Markup");
 
-        // 3. Send it out safely
+        // 3. Fire the payload out with standard submission configurations
         const res = await fetch(formspreeUrl, { 
           method: "POST", 
           headers: { 
+            "Content-Type": "application/x-www-form-urlencoded",
             "Accept": "application/json"
           }, 
-          body: formspreePayload 
+          body: urlEncodedData.toString()
         });
 
         if (res.ok) { 
@@ -630,7 +628,6 @@ try {
           alert("Error sending report through serverless pipeline."); 
         }
       } catch (err) { 
-        // THIS WILL UNMASK THE REAL JAVASCRIPT BUG:
         alert("CRITICAL DIAGNOSTIC ERROR: " + err.name + " - " + err.message); 
       }
     }
